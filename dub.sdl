@@ -1,0 +1,6 @@
+name "dm"
+description "Delivery merger"
+authors "Joseph Hunkeler"
+copyright "Copyright © 2019, Joseph Hunkeler"
+license "BSD"
+dependency "dyaml" version="~>0.7.1"
