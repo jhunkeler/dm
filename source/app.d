@@ -21,12 +21,17 @@ int main(string[] args) {
         return 1;
     }
     conda.initialize();
+    auto info = testable_packages(conda, "test.dm");
+    writeln(info);
+
+    /*
     env_combine(conda,
             "delivery",
             "https://raw.githubusercontent.com/astroconda/astroconda-releases/master/hstdp/2019.3/dev/hstdp-2019.3-linux-py36.02.txt",
             "test.dm");
     conda.run("info");
     conda.run("list");
+    */
 
     /*
     conda.activate("base");

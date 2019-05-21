@@ -1,4 +1,6 @@
 import core.cpuid : isX86_64;
+import std.array;
+import std.conv;
 import std.file;
 import std.stdio;
 import std.string;
@@ -59,7 +61,7 @@ class Conda {
     this() {
         env = getenv();
         env_orig = env.dup;
-        this.url_installer = join([this.url_miniconda, this.installer_file()], dirSeparator);
+        this.url_installer = join([this.url_miniconda, this.installer_file()], "/");
     }
 
     void dump_env_shell() {
@@ -179,7 +181,7 @@ class Conda {
     void configure_headless() {
         // YAML is cheap.
         // Generate a .condarc inside the new prefix root
-        auto fp = File(this.install_prefix ~ dirSeparator ~ ".condarc", "w+");
+        auto fp = File(chainPath(this.install_prefix, ".condarc").array, "w+");
         fp.write("changeps1: False\n");
         fp.write("always_yes: True\n");
         fp.write("quiet: True\n");
@@ -202,7 +204,7 @@ class Conda {
         }
 
         this.env["PATH"] = join(
-                [this.install_prefix ~ dirSeparator ~ "bin",
+                [cast(string)chainPath(this.install_prefix, "bin").array,
                 this.env["PATH"]],
                 pathSeparator);
         this.configure_headless();
@@ -238,5 +240,21 @@ class Conda {
 
     string multiarg(string flag, string[] arr) {
         return flag ~ " " ~ arr.join(" " ~ flag ~ " ");
+    }
+
+    string[] scan_packages(string pattern="*") {
+        string[] result;
+        string pkgdir = chainPath(this.install_prefix, "pkgs").array;
+        if (!pkgdir.exists) {
+            throw new Exception(pkgdir ~ " does not exist");
+        }
+
+        foreach (DirEntry e; dirEntries(pkgdir, pattern, SpanMode.shallow)) {
+            if (e.isFile || e.name.endsWith(dirSeparator ~ "cache")) {
+                continue;
+            }
+            result ~= baseName(e.name);
+        }
+        return result;
     }
 }

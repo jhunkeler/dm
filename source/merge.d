@@ -1,12 +1,17 @@
 module merge;
-import std.stdio;
-import std.string;
+import std.algorithm;
 import std.array;
+import std.conv : to;
+import std.file;
 import std.format;
 import std.typecons;
-import std.file;
+import std.path;
+import std.range;
 import std.regex;
+import std.stdio;
+import std.string;
 import conda;
+import dyaml : dumper, Loader, Node;
 
 
 auto RE_COMMENT = regex(r"[;#]");
@@ -19,6 +24,7 @@ string safe_spec(string s) {
     return "'" ~ s ~ "'";
 }
 
+
 string safe_install(string[] specs) {
     string[] result;
     foreach (record; specs) {
@@ -26,6 +32,7 @@ string safe_install(string[] specs) {
     }
     return result.join(" ");
 }
+
 
 string[string][] dmfile(string filename) {
     string[string][] results;
@@ -47,6 +54,7 @@ string[string][] dmfile(string filename) {
     }
     return results;
 }
+
 
 bool env_combine(ref Conda conda, string name, string specfile, string mergefile) {
     if (indexOf(specfile, "://", 0) < 0 && !specfile.exists) {
@@ -80,4 +88,46 @@ bool env_combine(ref Conda conda, string name, string specfile, string mergefile
         return false;
     }
     return true;
+}
+
+
+string[string][] testable_packages(ref Conda conda, string mergefile) {
+    string[string][] results;
+    foreach (record; dmfile(mergefile)) {
+        string[] found_packages = conda.scan_packages(record["name"]
+                                                ~ "-"
+                                                ~ record["version"]
+                                                ~ "*");
+        string pkg = found_packages[$-1];
+        string pkg_d = chainPath(conda.install_prefix,
+                                 "pkgs",
+                                 pkg).array;
+        string info_d = chainPath(pkg_d, "info").array;
+        string recipe_d = chainPath(info_d, "recipe").array;
+        string git_log = chainPath(info_d, "git").array;
+        string recipe = chainPath(recipe_d, "meta.yaml").array;
+        string repository;
+        string head;
+        string[] logdata;
+        Node meta;
+
+        if (!git_log.exists) {
+            continue;
+        }
+
+        foreach (line; File(git_log).byLine) {
+            logdata ~= line.dup;
+        }
+
+        if (logdata.empty) {
+            continue;
+        }
+
+        head = logdata[1].split()[1];
+        meta = Loader.fromFile(recipe).load();
+        repository = meta["source"]["git_url"].as!string;
+
+        results ~= ["repo": repository, "commit": head];
+    }
+    return results;
 }
