@@ -147,7 +147,7 @@ class Conda {
 
     bool installer() {
         if (this.in_env() || this.install_prefix.exists) {
-            writefln("Conda is already installed: %s", this.install_prefix);
+            writefln("Miniconda is already installed: %s", this.install_prefix);
             return true;
         } else if (this.install_prefix.empty) {
             this.install_prefix = absolutePath("./miniconda");
@@ -156,22 +156,19 @@ class Conda {
         }
 
         if (this.have_installer()) {
-            writeln("Installer already exists");
+            writeln("Miniconda installation script already exists");
         } else {
             download(this.url_installer, this.installer_file());
         }
 
-        auto installer = executeShell(
+        auto installer = this.sh(
                 "bash "
                 ~ this.installer_file()
                 ~ " -b"
                 ~ " -p "
-                ~ this.install_prefix,
-                env=this.env);
+                ~ this.install_prefix);
 
-        writeln(installer.output);
-
-        if (installer.status != 0) {
+        if (installer != 0) {
             return false;
         }
 
@@ -227,8 +224,8 @@ class Conda {
         return proc;
     }
 
-    auto sh_block(string command) {
-        auto proc = executeShell(command, env=this.env);
+    auto run_block(string command) {
+        auto proc = this.sh_block("conda " ~ command);
         return proc;
     }
 
@@ -236,6 +233,11 @@ class Conda {
         writeln("Running: " ~ command);
         auto proc = spawnShell(command, env=this.env);
         return wait(proc);
+    }
+
+    auto sh_block(string command) {
+        auto proc = executeShell(command, env=this.env);
+        return proc;
     }
 
     string multiarg(string flag, string[] arr) {
@@ -256,5 +258,23 @@ class Conda {
             result ~= baseName(e.name);
         }
         return result;
+    }
+
+    string dump_env_yaml(string filename=null) {
+        string args;
+        if (filename !is null) {
+            args = "--file " ~ filename;
+        }
+        auto proc = this.run_block("env export " ~ args);
+        return proc.output;
+    }
+
+    string dump_env_explicit(string filename=null) {
+        auto proc = this.run_block("list --explicit");
+        if (filename !is null) {
+            auto file = File(filename, "w+");
+            file.write(proc.output);
+        }
+        return proc.output;
     }
 }

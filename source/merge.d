@@ -44,9 +44,6 @@ string[string][] dmfile(string filename) {
         if (line.empty) { continue; }
 
         auto record = matchFirst(line, RE_DMFILE);
-        writefln("-> package: %-10s :: version: %-10s", record["name"],
-                !record["version"].empty ? record["version"] : "none");
-
         pkg["name"] = record["name"].dup;
         pkg["version"] = record["version"].dup;
         pkg["fullspec"] = record.hit.dup;
@@ -65,26 +62,24 @@ bool env_combine(ref Conda conda, string name, string specfile, string mergefile
 
     int retval = 0;
     string[] specs;
-    auto merge_data = dmfile(mergefile);
-    foreach (record; merge_data) {
-        specs ~= record["fullspec"];
-    }
 
-    retval = conda.run("create -n "
-                          ~ name
-                          ~ " --file "
-                          ~ specfile);
-    if (retval) {
+    if(conda.run("create -n " ~ name ~ " --file " ~ specfile)) {
         return false;
     }
 
     conda.activate(name);
 
-    retval = conda.run("install "
-                       ~ conda.multiarg("-c", conda.channels)
-                       ~ " "
-                       ~ safe_install(specs));
-    if (retval) {
+    writeln("Delivery merge specification:");
+    foreach (record; dmfile(mergefile)) {
+        writefln("-> package: %-15s :: version: %s",
+                 record["name"],
+                 !record["version"].empty ? record["version"] : "any");
+
+        specs ~= record["fullspec"];
+    }
+
+    if (conda.run("install " ~ conda.multiarg("-c", conda.channels)
+                  ~ " " ~ safe_install(specs))) {
         return false;
     }
     return true;
@@ -94,22 +89,33 @@ bool env_combine(ref Conda conda, string name, string specfile, string mergefile
 string[string][] testable_packages(ref Conda conda, string mergefile) {
     string[string][] results;
     foreach (record; dmfile(mergefile)) {
+        Node meta;
+        string pkg_d;
+        string pkg;
+        string repository;
+        string head;
+        string[] logdata;
         string[] found_packages = conda.scan_packages(record["name"]
                                                 ~ "-"
                                                 ~ record["version"]
                                                 ~ "*");
-        string pkg = found_packages[$-1];
-        string pkg_d = chainPath(conda.install_prefix,
-                                 "pkgs",
-                                 pkg).array;
+
+        if (found_packages.empty) {
+            writefln("Unable to locate package: %s", record["fullspec"]);
+            continue;
+        } else if (found_packages.length > 1) {
+            pkg = found_packages[$-1];
+        } else {
+            pkg = found_packages[0];
+        }
+        pkg_d = chainPath(conda.install_prefix,
+                          "pkgs",
+                          pkg).array;
+
         string info_d = chainPath(pkg_d, "info").array;
         string recipe_d = chainPath(info_d, "recipe").array;
         string git_log = chainPath(info_d, "git").array;
         string recipe = chainPath(recipe_d, "meta.yaml").array;
-        string repository;
-        string head;
-        string[] logdata;
-        Node meta;
 
         if (!git_log.exists) {
             continue;
@@ -125,7 +131,12 @@ string[string][] testable_packages(ref Conda conda, string mergefile) {
 
         head = logdata[1].split()[1];
         meta = Loader.fromFile(recipe).load();
-        repository = meta["source"]["git_url"].as!string;
+        try {
+            repository = meta["source"]["git_url"].as!string;
+        } catch (Exception e) {
+            writeln(e.msg);
+            repository = "";
+        }
 
         results ~= ["repo": repository, "commit": head];
     }
