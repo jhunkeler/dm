@@ -62,8 +62,9 @@ bool env_combine(ref Conda conda, string name, string specfile, string mergefile
 
     int retval = 0;
     string[] specs;
+    string opmode = specfile.endsWith(".yml") ? "env " : "";
 
-    if(conda.run("create -n " ~ name ~ " --file " ~ specfile)) {
+    if(conda.run(opmode ~ "create -n " ~ name ~ " --file " ~ specfile)) {
         return false;
     }
 
