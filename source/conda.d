@@ -169,6 +169,7 @@ class Conda {
         if (this.have_installer()) {
             writeln("Miniconda installation script already exists");
         } else {
+            writeln("Downloading " ~ this.installer_file());
             download(this.url_installer, this.installer_file());
         }
 

@@ -92,13 +92,13 @@ int main(string[] args) {
     }
 
     if (!output_dir.exists) {
+        writeln("Creating output directory: " ~ output_dir);
         output_dir.mkdirRecurse;
     }
 
     conda.dump_env_yaml(buildPath(output_dir, env_name ~ ".yml"));
     conda.dump_env_explicit(buildPath(output_dir, env_name ~ ".txt"));
 
-    writeln("Output directory is: " ~ output_dir);
     writeln("Done!");
     return 0;
 }
