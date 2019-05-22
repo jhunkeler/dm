@@ -13,7 +13,11 @@ import std.typecons;
 static auto getenv(string[string] base=null, string preface=null) {
     const char delim = '=';
     string[string] env;
-    string cmd = "env -0";
+    string cmd = "env";
+
+    version (Linux) {
+        cmd = cmd ~ " -0";
+    }
 
     // Execute a command before dumping the environment
     if (preface !is null) {
