@@ -98,6 +98,7 @@ int main(string[] args) {
     conda.dump_env_yaml(buildPath(output_dir, env_name ~ ".yml"));
     conda.dump_env_explicit(buildPath(output_dir, env_name ~ ".txt"));
 
+    writeln("Output directory is: " ~ output_dir);
     writeln("Done!");
     return 0;
 }
