@@ -15,9 +15,9 @@ static auto getenv(string[string] base=null, string preface=null) {
     string[string] env;
     string cmd = "env";
 
+    // Execute a command before dumping the environment
     if (preface !is null) {
         cmd = preface ~ " && " ~ cmd;
-        writeln("preface: " ~ cmd);
     }
 
     auto env_sh = executeShell(cmd, env=base);
@@ -258,6 +258,10 @@ class Conda {
             result ~= baseName(e.name);
         }
         return result;
+    }
+
+    bool env_exists(string name) {
+        return buildPath(this.install_prefix, "envs", name).exists;
     }
 
     string dump_env_yaml(string filename=null) {
