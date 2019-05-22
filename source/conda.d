@@ -13,7 +13,7 @@ import std.typecons;
 static auto getenv(string[string] base=null, string preface=null) {
     const char delim = '=';
     string[string] env;
-    string cmd = "env";
+    string cmd = "env -0";
 
     // Execute a command before dumping the environment
     if (preface !is null) {
@@ -27,7 +27,7 @@ static auto getenv(string[string] base=null, string preface=null) {
         throw new Exception("Unable to read shell environment");
     }
 
-    foreach (string line; splitLines(env_sh.output)) {
+    foreach (string line; split(env_sh.output, '\0')) {
         if (line.empty) {
             continue;
         }
