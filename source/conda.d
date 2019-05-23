@@ -241,9 +241,9 @@ class Conda {
 
     int sh(string command) {
         writeln("Running: " ~ command);
-        auto proc = executeShell(command, env=this.env);
-        writeln(proc.output);
-        return proc.status;
+        auto proc = spawnShell(command, env=this.env);
+        scope(exit) wait(proc);
+        return wait(proc);
     }
 
     auto sh_block(string command) {

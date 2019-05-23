@@ -18,6 +18,10 @@ int main(string[] args) {
     string mergefile;
     string base_spec;
 
+    // disable buffering
+    stdout.setvbuf(0, _IONBF);
+    stderr.setvbuf(0, _IONBF);
+
     try {
         auto optargs = getopt(
             args,
