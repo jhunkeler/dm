@@ -32,6 +32,10 @@ static auto getenv(string[string] base=null, string preface=null) {
     }
 
     auto env_sh = executeShell(cmd, env=base);
+    scope(exit) {
+        stdout.flush();
+        stderr.flush();
+    }
 
     if (env_sh.status) {
         writeln(env_sh.status, env_sh.output);
@@ -244,11 +248,21 @@ class Conda {
     int sh(string command) {
         writeln("Running: " ~ command);
         auto proc = spawnShell(command, env=this.env);
-        return wait(proc);
+        int st = 0;
+        scope (exit) {
+            st = wait(proc);
+            stdout.flush();
+            stderr.flush();
+        }
+        return st;
     }
 
     auto sh_block(string command) {
         auto proc = executeShell(command, env=this.env);
+        scope(exit) {
+            stdout.flush();
+            stderr.flush();
+        }
         return proc;
     }
 
