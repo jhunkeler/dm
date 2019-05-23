@@ -32,14 +32,8 @@ static auto getenv(string[string] base=null, string preface=null) {
     }
 
     auto env_sh = executeShell(cmd, env=base);
-    scope(exit) {
-        stdout.flush();
-        stderr.flush();
-    }
-
     if (env_sh.status) {
-        writeln(env_sh.status, env_sh.output);
-        throw new Exception("Unable to read shell environment");
+        throw new Exception("Unable to read shell environment:" ~ env_sh.output);
     }
 
     foreach (string line; split(env_sh.output, delim_line)) {
@@ -199,6 +193,7 @@ class Conda {
         fp.write("always_yes: True\n");
         fp.write("quiet: True\n");
         fp.write("auto_update_conda: False\n");
+        fp.write("notify_outdated_conda: False\n");
         fp.write("rollback_enabled: False\n");
         fp.write("channels:\n");
         if (this.channels.empty) {
@@ -235,8 +230,7 @@ class Conda {
     }
 
     int run(string command) {
-        string cmd = "conda " ~ command;
-        auto proc = this.sh(cmd);
+        auto proc = this.sh("conda " ~ command);
         return proc;
     }
 
@@ -247,22 +241,13 @@ class Conda {
 
     int sh(string command) {
         writeln("Running: " ~ command);
-        auto proc = spawnShell(command, env=this.env);
-        int st = 0;
-        scope (exit) {
-            st = wait(proc);
-            stdout.flush();
-            stderr.flush();
-        }
-        return st;
+        auto proc = executeShell(command, env=this.env);
+        writeln(proc.output);
+        return proc.status;
     }
 
     auto sh_block(string command) {
         auto proc = executeShell(command, env=this.env);
-        scope(exit) {
-            stdout.flush();
-            stderr.flush();
-        }
         return proc;
     }
 
