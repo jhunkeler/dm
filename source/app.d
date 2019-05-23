@@ -29,11 +29,11 @@ int main(string[] args) {
             "install-variant", "miniconda Python variant", &installer_variant,
             "install-version|i", "version of miniconda installer", &installer_version,
             "run-tests|R", "scan merged packages and execute their tests", &run_tests,
-            "base-spec", "conda explicit or yaml environment dump", &base_spec
+            "base-spec", "conda explicit or yaml environment dump file", &base_spec
         );
 
         if (optargs.helpWanted) {
-            defaultGetoptPrinter("Delivery merge [fill in the blanks]",
+            defaultGetoptPrinter("Create reproducible pipeline deliveries",
                                  optargs.options);
             return 0;
         }
