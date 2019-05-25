@@ -8,48 +8,7 @@ import std.system;
 import std.path;
 import std.process;
 import std.typecons;
-
-
-static auto getenv(string[string] base=null, string preface=null) {
-    const char delim = '=';
-    char delim_line = '\n';
-    string[string] env;
-    string cmd = "env";
-
-    version (linux) {
-        cmd ~= " -0";
-        delim_line = '\0';
-    }
-
-    version (Windows) {
-        cmd = "set";
-        delim_line = "\r\n";
-    }
-
-    // Execute a command before dumping the environment
-    if (preface !is null) {
-        cmd = preface ~ " && " ~ cmd;
-    }
-
-    auto env_sh = executeShell(cmd, env=base);
-    if (env_sh.status) {
-        throw new Exception("Unable to read shell environment:" ~ env_sh.output);
-    }
-
-    foreach (string line; split(env_sh.output, delim_line)) {
-        if (line.empty) {
-            continue;
-        }
-        auto data = split(line, delim);
-
-        // Recombine extra '=' chars
-        if (data.length > 2) {
-           data[1] = join(data[1 .. $], delim);
-        }
-        env[data[0]] = data[1];
-    }
-    return env;
-}
+import util;
 
 
 class Conda {
@@ -216,6 +175,7 @@ class Conda {
                 this.env["PATH"]],
                 pathSeparator);
         this.configure_headless();
+        this.fix_setuptools();
         this.initialized = true;
     }
 
@@ -223,6 +183,7 @@ class Conda {
         this.env_orig = this.env.dup;
         string[string] env_new = getenv(this.env, "source activate " ~ name);
         this.env = env_new.dup;
+        this.fix_setuptools();
     }
 
     void deactivate() {
@@ -240,7 +201,7 @@ class Conda {
     }
 
     int sh(string command) {
-        writeln("Running: " ~ command);
+        banner('#', command);
         auto proc = spawnShell(command, env=this.env);
         scope(exit) wait(proc);
         return wait(proc);
@@ -273,6 +234,28 @@ class Conda {
 
     bool env_exists(string name) {
         return buildPath(this.install_prefix, "envs", name).exists;
+    }
+
+    string env_where(string name) {
+        if (this.env_exists(name)) {
+            return buildPath(this.install_prefix, "envs", name);
+        }
+        return null;
+    }
+
+    string env_current() {
+        return this.env.get("CONDA_PREFIX", null);
+    }
+
+    string site() {
+        return this.sh_block("python -c 'import site; print(site.getsitepackages()[0])'").output.strip;
+    }
+
+    void fix_setuptools() {
+        string pthfile = buildPath(this.site(), "easy-install.pth");
+        if (!pthfile.exists) {
+            File(pthfile, "w+").write("");
+        }
     }
 
     string dump_env_yaml(string filename=null) {

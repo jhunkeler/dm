@@ -15,6 +15,9 @@ int main(string[] args) {
     string installer_variant = "3";
     string installer_version = "4.5.12";
     bool run_tests = false;
+    string test_program = "pytest";
+    string test_args = "-v";       // arguments to pass to test runner
+    string test_requires;   // pip requirements file
     string mergefile;
     string base_spec;
 
@@ -33,6 +36,9 @@ int main(string[] args) {
             "install-variant", "miniconda Python variant", &installer_variant,
             "install-version|i", "version of miniconda installer", &installer_version,
             "run-tests|R", "scan merged packages and execute their tests", &run_tests,
+            "test-program", "program that will execute tests", &test_program,
+            "test-args", "arguments passed to test executor", &test_args,
+            "test-requires", "path to pip requirements file", &test_requires,
             "base-spec", "conda explicit or yaml environment dump file", &base_spec
         );
 
@@ -49,6 +55,10 @@ int main(string[] args) {
     installer_prefix = buildPath(installer_prefix).absolutePath;
     output_dir = buildPath(output_dir, env_name).absolutePath;
     mergefile = buildPath(mergefile).absolutePath;
+
+    if (!test_requires.empty) {
+        test_requires = buildPath(test_requires).absolutePath;
+    }
 
     if (installer_variant != "3") {
         writeln("Python 2.7 has reached end-of-life.");
@@ -102,6 +112,15 @@ int main(string[] args) {
 
     conda.dump_env_yaml(buildPath(output_dir, env_name ~ ".yml"));
     conda.dump_env_explicit(buildPath(output_dir, env_name ~ ".txt"));
+
+    if (run_tests) {
+        string testdir = buildPath(output_dir, "testdir");
+        test_runner_t runner = test_runner_t(test_program, test_args, test_requires);
+        testable_t[] testable = testable_packages(conda, mergefile);
+        foreach (t; testable) {
+            integration_test(conda, testdir, runner, t);
+        }
+    }
 
     writeln("Done!");
     return 0;

@@ -11,6 +11,7 @@ import std.regex;
 import std.stdio;
 import std.string;
 import conda;
+import util;
 import dyaml : dumper, Loader, Node;
 
 
@@ -20,17 +21,15 @@ auto RE_DMFILE_INVALID_VERSION = regex(r"[ !@#$%^&\*\(\)\-_]+");
 auto RE_DELIVERY_NAME = regex(r"(?P<name>.*)[-_](?P<version>.*)[-_]py(?P<python_version>\d+)[-_.](?P<iteration>\d+)[-_.](?P<ext>.*)");
 
 
-string safe_spec(string s) {
-    return "'" ~ s ~ "'";
+struct test_runner_t {
+    string program;
+    string args;
+    string requires;
 }
 
-
-string safe_install(string[] specs) {
-    string[] result;
-    foreach (record; specs) {
-        result ~= safe_spec(record);
-    }
-    return result.join(" ");
+struct testable_t {
+    string repo;
+    string head;
 }
 
 
@@ -87,8 +86,8 @@ bool env_combine(ref Conda conda, string name, string specfile, string mergefile
 }
 
 
-string[string][] testable_packages(ref Conda conda, string mergefile) {
-    string[string][] results;
+testable_t[] testable_packages(ref Conda conda, string mergefile) {
+    testable_t[] results;
     foreach (record; dmfile(mergefile)) {
         Node meta;
         string pkg_d;
@@ -139,7 +138,64 @@ string[string][] testable_packages(ref Conda conda, string mergefile) {
             repository = "";
         }
 
-        results ~= ["repo": repository, "commit": head];
+        results ~= testable_t(repository, head);
     }
     return results;
+}
+
+auto integration_test(ref Conda conda, string outdir, test_runner_t runner, testable_t pkg) {
+    import core.stdc.stdlib : exit;
+    import std.ascii : letters;
+    import std.conv : to;
+    import std.random : randomSample;
+    import std.utf : byCodeUnit;
+
+    string cwd = getcwd().absolutePath;
+    scope (exit) cwd.chdir;
+    string repo_root = buildPath(outdir, pkg.repo.baseName)
+                                 .replace(".git", "");
+    outdir.mkdirRecurse;
+
+    if (!repo_root.exists) {
+        if (conda.sh("git clone --recursive " ~ pkg.repo ~ " " ~ repo_root)) {
+            exit(1);
+        }
+    }
+
+    repo_root.chdir;
+
+    if (conda.sh("git checkout " ~ pkg.head)) {
+        exit(1);
+    }
+
+    foreach (string found; conda.scan_packages(repo_root.baseName ~ "*")) {
+        string[] tmp = found.split("-");
+        found = tmp[0];
+        // Does not need to succeed for all matches
+        conda.run("uninstall " ~ found);
+    }
+
+    if (runner.requires) {
+        if (conda.sh("python -m pip install -r " ~ runner.requires)) {
+            exit(1);
+        }
+    }
+
+    if (conda.sh("python -m pip install .[test]")) {
+        exit(1);
+    }
+
+    if (conda.sh("python setup.py egg_info")) {
+        exit(1);
+    }
+
+    auto id = letters.byCodeUnit.randomSample(6).to!string;
+    string basetemp = tempDir.buildPath("dm_testable" ~ id);
+    basetemp.mkdir;
+    scope(exit) basetemp.rmdirRecurse;
+
+    if (conda.sh(runner.program ~ " " ~ runner.args ~ " --basetemp=" ~ basetemp) > 1) {
+        exit(1);
+    }
+    return 0;
 }
