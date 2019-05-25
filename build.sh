@@ -6,8 +6,13 @@ DFLAGS="-w -g -O"
 
 build_tinyendian() {
     pushd ${extern}
-        git clone --recursive https://github.com/dlang-community/tinyendian
+        [ ! -d "tinyendian" ] && git clone --recursive https://github.com/dlang-community/tinyendian
         pushd tinyendian
+            if [[ $(find . -name '*.a') ]]; then
+                popd
+                popd
+                return
+            fi
             git checkout v0.2.0
             dmd ${DFLAGS} -lib -oflibtinyendian.a \
                 $(find source -type f -name '*.d')
@@ -17,8 +22,13 @@ build_tinyendian() {
 
 build_dyaml() {
     pushd ${extern}
-        git clone --recursive https://github.com/dlang-community/D-YAML
+        [ ! -d "D-YAML" ] && git clone --recursive https://github.com/dlang-community/D-YAML
         pushd D-YAML
+            if [[ $(find . -name '*.a') ]]; then
+                popd
+                popd
+                return
+            fi
             git checkout v0.7.1
             dmd ${DFLAGS} -lib -oflibdyaml.a \
                 -I../tinyendian/source \
@@ -28,6 +38,15 @@ build_dyaml() {
     popd
 }
 
+clean() {
+    rm -rf ${extern}
+    rm -rf *.o
+}
+
+if [ "$1" == "clean" ]; then
+    clean
+    exit 0
+fi
 
 mkdir -p ${extern}
 build_tinyendian
