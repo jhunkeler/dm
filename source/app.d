@@ -63,11 +63,11 @@ int main(string[] args) {
     dumpfile_explicit = buildPath(output_dir, env_name ~ ".txt");
     dumpfile_freeze = buildPath(output_dir, env_name ~ ".pip");
 
-    if (!test_requires.empty) {
+    if (run_tests && !test_requires.empty) {
         test_requires = buildPath(test_requires).absolutePath;
     }
 
-    if (!test_requires.exists) {
+    if (run_tests && !test_requires.empty && !test_requires.exists) {
         writeln("--test-requires, file not found: '" ~ test_requires ~ "'");
         return 1;
     }
