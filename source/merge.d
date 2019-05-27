@@ -150,6 +150,11 @@ auto integration_test(ref Conda conda, string outdir, test_runner_t runner, test
     import std.random : randomSample;
     import std.utf : byCodeUnit;
 
+    auto id = letters.byCodeUnit.randomSample(6).to!string;
+    string basetemp = tempDir.buildPath("dm_testable_" ~ id);
+    basetemp.mkdir;
+    scope(exit) basetemp.rmdirRecurse;
+
     string cwd = getcwd().absolutePath;
     scope (exit) cwd.chdir;
     string repo_root = buildPath(outdir, pkg.repo.baseName)
@@ -158,14 +163,14 @@ auto integration_test(ref Conda conda, string outdir, test_runner_t runner, test
 
     if (!repo_root.exists) {
         if (conda.sh("git clone --recursive " ~ pkg.repo ~ " " ~ repo_root)) {
-            exit(1);
+            return 1;
         }
     }
 
     repo_root.chdir;
 
     if (conda.sh("git checkout " ~ pkg.head)) {
-        exit(1);
+        return 1;
     }
 
     foreach (string found; conda.scan_packages(repo_root.baseName ~ "*")) {
@@ -177,25 +182,20 @@ auto integration_test(ref Conda conda, string outdir, test_runner_t runner, test
 
     if (runner.requires) {
         if (conda.sh("python -m pip install -r " ~ runner.requires)) {
-            exit(1);
+            return 1;
         }
     }
 
     if (conda.sh("python -m pip install .[test]")) {
-        exit(1);
+        return 1;
     }
 
     if (conda.sh("python setup.py egg_info")) {
-        exit(1);
+        return 1;
     }
 
-    auto id = letters.byCodeUnit.randomSample(6).to!string;
-    string basetemp = tempDir.buildPath("dm_testable" ~ id);
-    basetemp.mkdir;
-    scope(exit) basetemp.rmdirRecurse;
-
     if (conda.sh(runner.program ~ " " ~ runner.args ~ " --basetemp=" ~ basetemp) > 1) {
-        exit(1);
+        return 1;
     }
     return 0;
 }

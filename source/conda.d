@@ -275,4 +275,14 @@ class Conda {
         }
         return proc.output;
     }
+
+    string dump_env_freeze(string filename=null) {
+        auto proc = this.sh_block("pip freeze");
+        if (filename !is null) {
+            auto file = File(filename, "w+");
+            file.write(proc.output);
+        }
+        return proc.output;
+    }
+
 }

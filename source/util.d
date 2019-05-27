@@ -93,4 +93,3 @@ string safe_install(string specs) {
     }
     return result.join(" ");
 }
-

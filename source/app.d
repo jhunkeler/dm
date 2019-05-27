@@ -20,6 +20,9 @@ int main(string[] args) {
     string test_requires;   // pip requirements file
     string mergefile;
     string base_spec;
+    string dumpfile_yaml;
+    string dumpfile_explicit;
+    string dumpfile_freeze;
 
     // disable buffering
     stdout.setvbuf(0, _IONBF);
@@ -56,8 +59,17 @@ int main(string[] args) {
     output_dir = buildPath(output_dir, env_name).absolutePath;
     mergefile = buildPath(mergefile).absolutePath;
 
+    dumpfile_yaml = buildPath(output_dir, env_name ~ ".yml");
+    dumpfile_explicit = buildPath(output_dir, env_name ~ ".txt");
+    dumpfile_freeze = buildPath(output_dir, env_name ~ ".pip");
+
     if (!test_requires.empty) {
         test_requires = buildPath(test_requires).absolutePath;
+    }
+
+    if (!test_requires.exists) {
+        writeln("--test-requires, file not found: '" ~ test_requires ~ "'");
+        return 1;
     }
 
     if (installer_variant != "3") {
@@ -110,18 +122,30 @@ int main(string[] args) {
         output_dir.mkdirRecurse;
     }
 
-    conda.dump_env_yaml(buildPath(output_dir, env_name ~ ".yml"));
-    conda.dump_env_explicit(buildPath(output_dir, env_name ~ ".txt"));
+    writeln("Creating YAML dump: " ~ dumpfile_yaml);
+    conda.dump_env_yaml(dumpfile_yaml);
+    writeln("Creating explicit dump: " ~ dumpfile_explicit);
+    conda.dump_env_explicit(dumpfile_explicit);
+    writeln("Creating pip-freeze dump: " ~ dumpfile_freeze);
+    conda.dump_env_freeze(dumpfile_freeze);
 
     if (run_tests) {
+        int failures = 0;
         string testdir = buildPath(output_dir, "testdir");
         test_runner_t runner = test_runner_t(test_program, test_args, test_requires);
-        testable_t[] testable = testable_packages(conda, mergefile);
-        foreach (t; testable) {
-            integration_test(conda, testdir, runner, t);
+        testable_t[] pkgs = testable_packages(conda, mergefile);
+
+        foreach (pkg; pkgs) {
+            failures += integration_test(conda, testdir, runner, pkg);
+        }
+
+        if (failures) {
+            writefln("%d of %d integration tests failed!", failures, pkgs.length);
+        } else {
+            writefln("All integration tests passed!");
         }
     }
 
-    writeln("Done!");
+    writefln("Done!");
     return 0;
 }
