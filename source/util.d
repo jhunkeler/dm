@@ -2,6 +2,10 @@ module util;
 import std.stdio;
 import std.string;
 import std.process;
+import std.algorithm;
+import std.file;
+import std.path;
+import std.conv : to;
 
 
 enum byte MAXCOLS = 80;
@@ -92,4 +96,61 @@ string safe_install(string specs) {
         result ~= safe_spec(record);
     }
     return result.join(" ");
+}
+
+
+string pytest_xunit2(string filename) {
+    string _data = readText(filename);
+    string data;
+    string result;
+    bool inject = false;
+    bool inject_wait = false;
+    bool has_section = false;
+    bool has_junit_family = false;
+    string section;
+    immutable string key = "junit_family";
+    immutable string cfgitem = key ~ " = xunit2";
+
+    if (filename.baseName == "setup.cfg") {
+        section = "[tool:pytest]";
+    } else if (filename.baseName == "pytest.ini") {
+        section = "[pytest]";
+    }
+
+    foreach (line; splitLines(_data)) {
+        string tmp = line.to!string;
+        if (canFind(tmp, section)) {
+            has_section = true;
+        }
+        if (canFind(tmp, key)) {
+            has_junit_family = true;
+        }
+        data ~= tmp ~ "\n";
+    }
+
+    if (!has_section) {
+        return data ~ format("\n%s\n%s\n", section, cfgitem);
+    }
+
+    foreach (rec; splitLines(data)) {
+        if (!has_section) {
+            break;
+        } else if (rec.strip == section && !has_junit_family) {
+            inject = true;
+        } else if (has_junit_family) {
+            inject_wait = true;
+        } else if (inject_wait) {
+            if (canFind(rec, key)) {
+                rec = cfgitem ~ "\n";
+                inject_wait = false;
+            }
+        } else if (inject) {
+            result ~= cfgitem ~ "\n";
+            inject = false;
+        }
+
+        result ~= rec ~ "\n";
+    }
+
+    return result;
 }
