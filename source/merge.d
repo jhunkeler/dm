@@ -173,7 +173,7 @@ auto integration_test(ref Conda conda, string outdir, test_runner_t runner, test
         return 1;
     }
 
-    foreach (string found; conda.scan_packages(repo_root.baseName ~ "*")) {
+    foreach (string found; conda.scan_packages(repo_root.baseName ~ "*").sort.uniq) {
         string[] tmp = found.split("-");
         found = tmp[0];
         // Does not need to succeed for all matches
