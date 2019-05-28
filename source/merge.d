@@ -177,7 +177,7 @@ auto integration_test(ref Conda conda, string outdir, test_runner_t runner, test
         string[] tmp = found.split("-");
         found = tmp[0];
         // Does not need to succeed for all matches
-        conda.run("remove" ~ found);
+        conda.run("remove " ~ found);
     }
 
     if (runner.requires) {
