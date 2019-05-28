@@ -186,7 +186,7 @@ auto integration_test(ref Conda conda, string outdir, test_runner_t runner, test
         }
     }
 
-    if (conda.sh("python -m pip install .[test]")) {
+    if (conda.sh("python -m pip install -e .[test]")) {
         return 1;
     }
 
