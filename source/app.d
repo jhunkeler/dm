@@ -141,8 +141,6 @@ int main(string[] args) {
 
         if (failures) {
             writefln("%d of %d integration tests failed!", failures, pkgs.length);
-        } else {
-            writefln("All integration tests passed!");
         }
     }
 

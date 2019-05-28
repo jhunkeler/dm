@@ -202,7 +202,7 @@ auto integration_test(ref Conda conda, string outdir, test_runner_t runner, test
         pytest_xunit2(testconf);
     }
 
-    if (conda.sh(runner.program ~ " " ~ runner.args ~ " --basetemp=" ~ basetemp) > 1) {
+    if (conda.sh(runner.program ~ " " ~ runner.args ~ " --basetemp=" ~ basetemp)) {
         return 1;
     }
     return 0;
