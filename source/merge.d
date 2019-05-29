@@ -16,7 +16,7 @@ import dyaml : dumper, Loader, Node;
 
 
 auto RE_COMMENT = regex(r"[;#]");
-auto RE_DMFILE = regex(r"^(?P<name>[A-z\-_l]+)(?:[=<>]+)?(?P<version>[A-z0-9. ]+)?");
+auto RE_DMFILE = regex(r"^(?P<name>[A-z\-_.]+)(?:[=<>]+)?(?P<version>[A-z0-9. ]+)?");
 auto RE_DMFILE_INVALID_VERSION = regex(r"[ !@#$%^&\*\(\)\-_]+");
 auto RE_DELIVERY_NAME = regex(r"(?P<name>.*)[-_](?P<version>.*)[-_]py(?P<python_version>\d+)[-_.](?P<iteration>\d+)[-_.](?P<ext>.*)");
 
