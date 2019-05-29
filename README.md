@@ -25,6 +25,9 @@ Create reproducible pipeline deliveries
    --install-variant           miniconda Python variant
 -i --install-version           version of miniconda installer
 -R       --run-tests           scan merged packages and execute their tests
+      --test-program           program that will execute tests
+         --test-args           arguments passed to test executor
+     --test-requires           path to pip requirements file
          --base-spec           conda explicit or yaml environment dump file
 -h            --help           This help information.
 ```
