@@ -14,6 +14,7 @@ int main(string[] args) {
     string installer_prefix = "miniconda";
     string installer_variant = "3";
     string installer_version = "4.5.12";
+    string[] channels;
     bool run_tests = false;
     string test_program = "pytest";
     string test_args = "-v";       // arguments to pass to test runner
@@ -29,6 +30,8 @@ int main(string[] args) {
     stderr.setvbuf(0, _IONBF);
 
     try {
+        arraySep = ",";     // set getopt.arraySep. allows passing multiple
+                            // args as comma delimited strings.
         auto optargs = getopt(
             args,
             config.passThrough,
@@ -38,6 +41,7 @@ int main(string[] args) {
             "install-prefix|p", "path to install miniconda", &installer_prefix,
             "install-variant", "miniconda Python variant", &installer_variant,
             "install-version|i", "version of miniconda installer", &installer_version,
+            "channel|c", "conda channels (may be used multiple times)", &channels,
             "run-tests|R", "scan merged packages and execute their tests", &run_tests,
             "test-program", "program that will execute tests", &test_program,
             "test-args", "arguments passed to test executor", &test_args,
@@ -78,6 +82,14 @@ int main(string[] args) {
         installer_variant = "3";
     }
 
+    if (channels.empty) {
+        channels = [
+            "http://ssb.stsci.edu/astroconda",
+            "defaults",
+            "http://ssb.stsci.edu/astroconda-dev"
+        ];
+    }
+
     // Ingest the dump file via --base-spec or with a positional argument.
     if (base_spec.empty && args.length > 1) {
         base_spec = args[1];
@@ -91,11 +103,7 @@ int main(string[] args) {
     }
 
     Conda conda = new Conda();
-    conda.channels = [
-        "http://ssb.stsci.edu/astroconda",
-        "defaults",
-        "http://ssb.stsci.edu/astroconda-dev"
-    ];
+    conda.channels = channels;
     conda.install_prefix = installer_prefix;
     conda.installer_version = installer_version;
     conda.installer_variant = installer_variant;
