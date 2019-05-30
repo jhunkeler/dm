@@ -177,7 +177,9 @@ auto integration_test(ref Conda conda, string outdir, test_runner_t runner, test
         string[] tmp = found.split("-");
         found = tmp[0];
         // Does not need to succeed for all matches
-        conda.run("remove " ~ found);
+        if (conda.run("remove --force " ~ found)) {
+            conda.sh("python -m pip uninstall -y " ~ repo_root.baseName.replace("-", "_"));
+        }
     }
 
     if (runner.requires) {
@@ -195,11 +197,13 @@ auto integration_test(ref Conda conda, string outdir, test_runner_t runner, test
     }
 
     if (runner.program == "pytest" || runner.program == "py.test") {
-        string testconf = "pytest.ini";
-        if (!testconf.exists) {
-            testconf = "setup.cfg";
+        string data;
+        string pytest_cfg= "pytest.ini";
+        if (!pytest_cfg.exists) {
+            pytest_cfg = "setup.cfg";
         }
-        pytest_xunit2(testconf);
+        data = pytest_xunit2(pytest_cfg);
+        File(pytest_cfg, "w+").write(data);
     }
 
     if (conda.sh(runner.program ~ " " ~ runner.args ~ " --basetemp=" ~ basetemp)) {
