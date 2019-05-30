@@ -34,7 +34,7 @@ class Conda {
 
     void dump_env_shell() {
         foreach (pair; this.env.byKeyValue()) {
-            writeln(pair.key ~ " = " ~ pair.value);
+            writeln(pair.key ~ "=" ~ pair.value);
         }
     }
 
@@ -284,5 +284,4 @@ class Conda {
         }
         return proc.output;
     }
-
 }
