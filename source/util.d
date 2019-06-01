@@ -102,6 +102,15 @@ string safe_install(string specs) {
 
 
 string pytest_xunit2(string filename) {
+    if (!filename.exists) {
+        auto dummy = File(filename, "w+");
+        dummy.write("");
+        dummy.flush();
+        dummy.close();
+    }
+
+    string _data = readText(filename);
+    string data;
     string result;
     bool inject = false;
     bool inject_wait = false;
@@ -110,12 +119,6 @@ string pytest_xunit2(string filename) {
     string section;
     immutable string key = "junit_family";
     immutable string cfgitem = key ~ " = xunit2";
-    string _data = readText(filename);
-    string data;
-
-    if (!filename.exists) {
-        File(filename, "w+").write("");
-    }
 
     if (filename.baseName == "setup.cfg") {
         section = "[tool:pytest]";
