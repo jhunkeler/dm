@@ -202,6 +202,38 @@ string expander(string[string] aa, string name, char delim = '$') {
 }
 
 
+string interpolate(string[string]aa, string str, char delim = '$') {
+    import std.ascii;
+    string s = str.dup;
+    ulong[] needles = indexOfAll(s, delim);
+    string[] found;
+
+    foreach (needle; needles) {
+        string tmp = "";
+        for (ulong i = needle; i < s.length; i++) {
+            if (s[i] == delim) continue;
+            else if (s[i] == '{' || s[i] == '}')
+                continue;
+            else if (!s[i].isAlphaNum && s[i] != '_' )
+                break;
+            tmp ~= s[i];
+        }
+        found ~= tmp;
+    }
+
+    foreach (match; found) {
+        foreach (pair; aa.byPair) {
+            if (pair.key != match)
+                continue;
+            s = s.replace(delim ~ pair.key, pair.value)
+                      .replace(format("%c{%s}", delim, pair.key), pair.value);
+        }
+    }
+
+    return s;
+}
+
+
 string short_version(string vrs) {
     string tmp = vrs.dup;
     tmp = tmp.replace(".", "");

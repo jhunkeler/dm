@@ -9,6 +9,7 @@ import std.range : enumerate;
 import conda;
 import merge;
 import session;
+import util;
 
 
 int main(string[] args) {
@@ -114,6 +115,9 @@ int main(string[] args) {
         int failures = 0;
         string testdir = buildPath(output_dir, "testdir");
         testable_t[] pkgs = testable_packages(conda, session.conda_requirements, session.test_filter_git_orgs);
+
+        // Allow use of environment variables in test program argument list
+        session.test_args = interpolate(conda.env, session.test_args);
 
         foreach (i, pkg; pkgs.enumerate(0)) {
             string tmpenv = format("%04d_%s", i, session.delivery);
