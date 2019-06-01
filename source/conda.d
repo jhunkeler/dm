@@ -20,7 +20,7 @@ class Conda {
     public string install_prefix;
     public string installer_version = "4.5.12";
     public string installer_variant = "3";
-    private string[string] env;
+    public string[string] env;
     private string[string] env_orig;
     private const string url_base = "https://repo.continuum.io";
     private const string url_miniconda = join([this.url_base, "miniconda"], "/");

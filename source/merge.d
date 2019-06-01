@@ -86,7 +86,7 @@ bool env_combine(ref Session_t session, ref Conda conda) {
 }
 
 
-testable_t[] testable_packages(ref Conda conda, string[] inputs) {
+testable_t[] testable_packages(ref Conda conda, string[] inputs, string[] orgs=[]) {
     testable_t[] results;
     foreach (record; dmfile(inputs)) {
         Node meta;
@@ -138,12 +138,24 @@ testable_t[] testable_packages(ref Conda conda, string[] inputs) {
             repository = "";
         }
 
+        bool[] skips;
+        foreach (git_org; orgs) {
+            if (!canFind(repository, git_org)) {
+                skips ~= true;
+            }
+        }
+
+        if (any(skips)) {
+            writefln("Will not test package: %s", repository);
+            continue;
+        }
         results ~= testable_t(repository, head);
     }
     return results;
 }
 
-auto integration_test(ref Session_t session,
+
+int integration_test(ref Session_t session,
                       ref Conda conda,
                       string outdir,
                       testable_t pkg) {

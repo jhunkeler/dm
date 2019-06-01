@@ -80,6 +80,9 @@ int main(string[] args) {
         return 1;
     }
 
+    foreach (pair; session.runtime.byPair) {
+        conda.env[pair.key] = session.runtime[pair.key];
+    }
     conda.initialize();
 
     if (conda.env_exists(session.delivery)) {
@@ -107,7 +110,7 @@ int main(string[] args) {
     if (session.run_tests) {
         int failures = 0;
         string testdir = buildPath(output_dir, "testdir");
-        testable_t[] pkgs = testable_packages(conda, session.conda_requirements);
+        testable_t[] pkgs = testable_packages(conda, session.conda_requirements, session.test_filter_git_orgs);
 
         foreach (pkg; pkgs) {
             failures += integration_test(session, conda, testdir, pkg);

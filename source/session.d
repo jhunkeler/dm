@@ -30,6 +30,8 @@ struct Session_t {
     string test_args = "-v";
     string[] test_conda_requirements;
     string[] test_pip_requirements;
+    string[] test_filter_git_orgs;
+    string[] test_filter_git_projects;
 }
 
 
@@ -129,6 +131,18 @@ Session_t getconf(string filename) {
         data = root["test_pip_requirements"];
         foreach (Node v; data)
             session.test_pip_requirements ~= v.as!string;
+    }
+
+    if (root.containsKey("test_filter_git_orgs")) {
+        data = root["test_filter_git_orgs"];
+        foreach (Node v; data)
+            session.test_filter_git_orgs ~= v.as!string;
+    }
+
+    if (root.containsKey("test_filter_git_projects")) {
+        data = root["test_filter_git_projects"];
+        foreach (Node v; data)
+            session.test_filter_git_projects ~= v.as!string;
     }
     return session;
 }
