@@ -12,6 +12,7 @@ import std.stdio;
 import std.string;
 import conda;
 import util;
+import session;
 import dyaml : dumper, Loader, Node;
 
 
@@ -24,7 +25,7 @@ auto RE_DELIVERY_NAME = regex(r"(?P<name>.*)[-_](?P<version>.*)[-_]py(?P<python_
 struct test_runner_t {
     string program;
     string args;
-    string requires;
+    string[] requires;
 }
 
 struct testable_t {
@@ -33,9 +34,9 @@ struct testable_t {
 }
 
 
-string[string][] dmfile(string filename) {
+string[string][] dmfile(string[] packages) {
     string[string][] results;
-    foreach (line; File(filename).byLine()) {
+    foreach (line; packages) {
         string[string] pkg;
         line = strip(line);
         auto has_comment = matchFirst(line, RE_COMMENT);
@@ -52,25 +53,24 @@ string[string][] dmfile(string filename) {
 }
 
 
-bool env_combine(ref Conda conda, string name, string specfile, string mergefile) {
-    if (indexOf(specfile, "://", 0) < 0 && !specfile.exists) {
-        throw new Exception(specfile ~ " does not exist");
-    } else if (!mergefile.exists) {
-        throw new Exception(mergefile ~ " does not exist");
+bool env_combine(ref Session_t session, ref Conda conda) {
+    if (indexOf(session.base_spec, "://", 0) < 0 && !session.base_spec.exists) {
+        throw new Exception(session.base_spec~ " does not exist");
     }
 
     int retval = 0;
     string[] specs;
-    string opmode = specfile.endsWith(".yml") ? "env " : "";
+    string opmode = session.base_spec.endsWith(".yml") ? "env " : "";
 
-    if(conda.run(opmode ~ "create -n " ~ name ~ " --file " ~ specfile)) {
+    if(conda.run(opmode ~ "create -n " ~ session.delivery
+                 ~ " --file " ~ session.base_spec)) {
         return false;
     }
 
-    conda.activate(name);
+    conda.activate(session.delivery);
 
     writeln("Delivery merge specification:");
-    foreach (record; dmfile(mergefile)) {
+    foreach (record; dmfile(session.conda_requirements)) {
         writefln("-> package: %-15s :: version: %s",
                  record["name"],
                  !record["version"].empty ? record["version"] : "any");
@@ -86,9 +86,9 @@ bool env_combine(ref Conda conda, string name, string specfile, string mergefile
 }
 
 
-testable_t[] testable_packages(ref Conda conda, string mergefile) {
+testable_t[] testable_packages(ref Conda conda, string[] inputs) {
     testable_t[] results;
-    foreach (record; dmfile(mergefile)) {
+    foreach (record; dmfile(inputs)) {
         Node meta;
         string pkg_d;
         string pkg;
@@ -143,7 +143,10 @@ testable_t[] testable_packages(ref Conda conda, string mergefile) {
     return results;
 }
 
-auto integration_test(ref Conda conda, string outdir, test_runner_t runner, testable_t pkg) {
+auto integration_test(ref Session_t session,
+                      ref Conda conda,
+                      string outdir,
+                      testable_t pkg) {
     import core.stdc.stdlib : exit;
     import std.ascii : letters;
     import std.conv : to;
@@ -182,8 +185,16 @@ auto integration_test(ref Conda conda, string outdir, test_runner_t runner, test
         }
     }
 
-    if (runner.requires) {
-        if (conda.sh("python -m pip install -r " ~ runner.requires)) {
+    if (!session.test_conda_requirements.empty) {
+        if (conda.sh("conda install "
+                     ~ safe_install(session.test_conda_requirements))) {
+            return 1;
+        }
+    }
+
+    if (!session.test_pip_requirements.empty) {
+        if (conda.sh("python -m pip install "
+                     ~ safe_install(session.test_pip_requirements))) {
             return 1;
         }
     }
@@ -196,7 +207,7 @@ auto integration_test(ref Conda conda, string outdir, test_runner_t runner, test
         return 1;
     }
 
-    if (runner.program == "pytest" || runner.program == "py.test") {
+    if (session.test_program == "pytest" || session.test_program == "py.test") {
         string data;
         string pytest_cfg= "pytest.ini";
         if (!pytest_cfg.exists) {
@@ -206,7 +217,8 @@ auto integration_test(ref Conda conda, string outdir, test_runner_t runner, test
         File(pytest_cfg, "w+").write(data);
     }
 
-    if (conda.sh(runner.program ~ " " ~ runner.args ~ " --basetemp=" ~ basetemp)) {
+    if (conda.sh(session.test_program ~ " "
+                 ~ session.test_args ~ " --basetemp=" ~ basetemp)) {
         return 1;
     }
     return 0;
