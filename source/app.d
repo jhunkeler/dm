@@ -1,3 +1,4 @@
+import std.getopt;
 import std.stdio;
 import std.array;
 import std.format;
@@ -6,24 +7,18 @@ import std.typecons;
 import std.path : buildPath, chainPath, absolutePath;
 import conda;
 import merge;
+import session;
+
 
 int main(string[] args) {
-    import std.getopt;
-    string env_name;
     string output_dir = "delivery";
     string installer_prefix = "miniconda";
     string installer_variant = "3";
     string installer_version = "4.5.12";
-    string[] channels;
-    bool run_tests = false;
-    string test_program = "pytest";
-    string test_args = "-v";       // arguments to pass to test runner
-    string test_requires;   // pip requirements file
-    string mergefile;
-    string base_spec;
     string dumpfile_yaml;
     string dumpfile_explicit;
     string dumpfile_freeze;
+    string configfile;
 
     // disable buffering
     stdout.setvbuf(0, _IONBF);
@@ -35,18 +30,11 @@ int main(string[] args) {
         auto optargs = getopt(
             args,
             config.passThrough,
-            config.required, "env-name|n", "name of delivery", &env_name,
-            config.required, "dmfile|d", "delivery merge specification file", &mergefile,
+            config.required, "config", "dm yaml configuration", &configfile,
             "output-dir|o", "store delivery-related results in dir", &output_dir,
             "install-prefix|p", "path to install miniconda", &installer_prefix,
             "install-variant", "miniconda Python variant", &installer_variant,
             "install-version|i", "version of miniconda installer", &installer_version,
-            "channel|c", "conda channels (may be used multiple times)", &channels,
-            "run-tests|R", "scan merged packages and execute their tests", &run_tests,
-            "test-program", "program that will execute tests", &test_program,
-            "test-args", "arguments passed to test executor", &test_args,
-            "test-requires", "path to pip requirements file", &test_requires,
-            "base-spec", "conda explicit or yaml environment dump file", &base_spec
         );
 
         if (optargs.helpWanted) {
@@ -59,22 +47,13 @@ int main(string[] args) {
         return 1;
     }
 
+    Session_t session = getconf(configfile);
     installer_prefix = buildPath(installer_prefix).absolutePath;
-    output_dir = buildPath(output_dir, env_name).absolutePath;
-    mergefile = buildPath(mergefile).absolutePath;
+    output_dir = buildPath(output_dir, session.delivery).absolutePath;
 
-    dumpfile_yaml = buildPath(output_dir, env_name ~ ".yml");
-    dumpfile_explicit = buildPath(output_dir, env_name ~ ".txt");
-    dumpfile_freeze = buildPath(output_dir, env_name ~ ".pip");
-
-    if (run_tests && !test_requires.empty) {
-        test_requires = buildPath(test_requires).absolutePath;
-    }
-
-    if (run_tests && !test_requires.empty && !test_requires.exists) {
-        writeln("--test-requires, file not found: '" ~ test_requires ~ "'");
-        return 1;
-    }
+    dumpfile_yaml = buildPath(output_dir, session.delivery ~ ".yml");
+    dumpfile_explicit = buildPath(output_dir, session.delivery ~ ".txt");
+    dumpfile_freeze = buildPath(output_dir, session.delivery ~ ".pip");
 
     if (installer_variant != "3") {
         writeln("Python 2.7 has reached end-of-life.");
@@ -82,28 +61,16 @@ int main(string[] args) {
         installer_variant = "3";
     }
 
-    if (channels.empty) {
-        channels = [
+    if (session.conda_channels.empty) {
+        session.conda_channels = [
             "http://ssb.stsci.edu/astroconda",
             "defaults",
             "http://ssb.stsci.edu/astroconda-dev"
         ];
     }
 
-    // Ingest the dump file via --base-spec or with a positional argument.
-    if (base_spec.empty && args.length > 1) {
-        base_spec = args[1];
-        args.popBack();
-    }
-
-    // Make sure base_spec contains at least something
-    if (base_spec.empty) {
-        writeln("Missing base environment dump file (--base-spec)");
-        return 1;
-    }
-
     Conda conda = new Conda();
-    conda.channels = channels;
+    conda.channels = session.conda_channels;
     conda.install_prefix = installer_prefix;
     conda.installer_version = installer_version;
     conda.installer_variant = installer_variant;
@@ -115,12 +82,12 @@ int main(string[] args) {
 
     conda.initialize();
 
-    if (conda.env_exists(env_name)) {
-        writefln("Environment '%s' already exists. Removing.", env_name);
-        conda.run("env remove -n " ~ env_name);
+    if (conda.env_exists(session.delivery)) {
+        writefln("Environment '%s' already exists. Removing.", session.delivery);
+        conda.run("env remove -n " ~ session.delivery);
     }
 
-    if (!env_combine(conda, env_name, base_spec, mergefile)) {
+    if (!env_combine(session, conda)) {
         writeln("Delivery merge failed!");
         return 1;
     }
@@ -137,21 +104,20 @@ int main(string[] args) {
     writeln("Creating pip-freeze dump: " ~ dumpfile_freeze);
     conda.dump_env_freeze(dumpfile_freeze);
 
-    if (run_tests) {
+    if (session.run_tests) {
         int failures = 0;
         string testdir = buildPath(output_dir, "testdir");
-        test_runner_t runner = test_runner_t(test_program, test_args, test_requires);
-        testable_t[] pkgs = testable_packages(conda, mergefile);
+        testable_t[] pkgs = testable_packages(conda, session.conda_requirements);
 
         foreach (pkg; pkgs) {
-            failures += integration_test(conda, testdir, runner, pkg);
+            failures += integration_test(session, conda, testdir, pkg);
         }
 
         if (failures) {
-            writefln("%d of %d integration tests failed!", failures, pkgs.length);
+            writefln("\n%d of %d integration tests failed!", failures, pkgs.length);
         }
     }
 
-    writefln("Done!");
+    writefln("done!");
     return 0;
 }
