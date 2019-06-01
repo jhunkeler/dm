@@ -55,7 +55,7 @@ string[string][] dmfile(string[] packages) {
 
 bool env_combine(ref Session_t session, ref Conda conda) {
     if (indexOf(session.base_spec, "://", 0) < 0 && !session.base_spec.exists) {
-        throw new Exception(session.base_spec~ " does not exist");
+        throw new Exception(session.base_spec ~ " does not exist");
     }
 
     int retval = 0;
@@ -67,7 +67,7 @@ bool env_combine(ref Session_t session, ref Conda conda) {
         return false;
     }
 
-    conda.activate(session.delivery);
+    //conda.activate(session.delivery);
 
     writeln("Delivery merge specification:");
     foreach (record; dmfile(session.conda_requirements)) {
@@ -78,7 +78,7 @@ bool env_combine(ref Session_t session, ref Conda conda) {
         specs ~= record["fullspec"];
     }
 
-    if (conda.run("install " ~ conda.multiarg("-c", conda.channels)
+    if (conda.run("install -n " ~ session.delivery ~ " " ~ conda.multiarg("-c", conda.channels)
                   ~ " " ~ safe_install(specs))) {
         return false;
     }

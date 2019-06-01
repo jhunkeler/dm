@@ -5,6 +5,7 @@ import std.format;
 import std.file;
 import std.typecons;
 import std.path : buildPath, chainPath, absolutePath;
+import std.range : enumerate;
 import conda;
 import merge;
 import session;
@@ -100,20 +101,33 @@ int main(string[] args) {
         output_dir.mkdirRecurse;
     }
 
+    conda.activate(session.delivery);
     writeln("Creating YAML dump: " ~ dumpfile_yaml);
     conda.dump_env_yaml(dumpfile_yaml);
     writeln("Creating explicit dump: " ~ dumpfile_explicit);
     conda.dump_env_explicit(dumpfile_explicit);
     writeln("Creating pip-freeze dump: " ~ dumpfile_freeze);
     conda.dump_env_freeze(dumpfile_freeze);
+    conda.deactivate();
 
     if (session.run_tests) {
         int failures = 0;
         string testdir = buildPath(output_dir, "testdir");
         testable_t[] pkgs = testable_packages(conda, session.conda_requirements, session.test_filter_git_orgs);
 
-        foreach (pkg; pkgs) {
+        foreach (i, pkg; pkgs.enumerate(0)) {
+            string tmpenv = format("%04d_%s", i, session.delivery);
+            if(conda.run("create -n " ~ tmpenv ~ " --clone " ~ session.delivery)) {
+                return false;
+            }
+            conda.activate(tmpenv);
+
             failures += integration_test(session, conda, testdir, pkg);
+
+            conda.deactivate();
+            if(conda.run("env remove -n " ~ tmpenv)) {
+                return false;
+            }
         }
 
         if (failures) {
