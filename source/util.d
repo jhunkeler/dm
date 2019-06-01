@@ -1,4 +1,6 @@
 module util;
+import std.ascii;
+import std.array;
 import std.stdio;
 import std.string;
 import std.process;
@@ -153,4 +155,51 @@ string pytest_xunit2(string filename) {
     }
 
     return result;
+}
+
+
+ulong[] indexOfAll(string s, char ch) {
+    ulong[] result;
+    for (ulong i = 0; i < s.length; i++) {
+        if (s[i] == ch) {
+            result ~= i;
+        }
+    }
+    return result;
+}
+
+
+string expander(string[string] aa, string name, char delim = '$') {
+    string s = aa[name].dup;
+    ulong[] needles = indexOfAll(s, delim);
+    string[string] found;
+
+    foreach (needle; needles) {
+        string tmp = "";
+        for (ulong i = needle; i < s.length; i++) {
+            if (s[i] == delim) continue;
+            else if (s[i] == '{' || s[i] == '}') continue;
+            else if (!s[i].isAlphaNum && s[i] != '_' ) break;
+            tmp ~= s[i];
+        }
+        writeln(tmp);
+        found[tmp] = aa.get(tmp, "");
+    }
+
+    foreach (pair; found.byPair) {
+        s = s.replace(delim ~ pair.key, pair.value)
+             .replace(format("%c{%s}", delim, pair.key), pair.value);
+    }
+
+    return s;
+}
+
+
+string short_version(string vrs) {
+    string tmp = vrs.dup;
+    tmp = tmp.replace(".", "");
+    if (tmp.length > 2) {
+        tmp = tmp[0 .. 2];
+    }
+    return tmp;
 }
