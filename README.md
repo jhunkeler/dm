@@ -22,6 +22,7 @@ Inside of a CI/CD pipeline.
 Create reproducible pipeline deliveries
             --config Required: dm yaml configuration
 -o      --output-dir           store delivery-related results in dir
+-t        --test-dir           store test-related results in dir
 -p  --install-prefix           path to install miniconda
    --install-variant           miniconda Python variant
 -i --install-version           version of miniconda installer
@@ -95,6 +96,19 @@ test_conda_requirements:
 # Note: Packages are not incorporated into the delivery
 test_pip_requirements:
   - ci-watson
+
+# Extend the test runtime environment for a package
+test_extended:
+  drizzlepac:
+    test_args: "--slow"
+    runtime:
+      SPECIAL_VARIABLE: "1"
+    commands:
+      - ./run_this.sh
+      - ./and_that.sh
+
+  another_package:
+    # ...
 ```
 
 ## Execution example
