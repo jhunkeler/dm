@@ -213,6 +213,8 @@ class Conda {
     }
 
     string multiarg(string flag, string[] arr) {
+        if (arr.empty)
+            return "";
         return flag ~ " " ~ arr.join(" " ~ flag ~ " ");
     }
 

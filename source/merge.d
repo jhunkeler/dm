@@ -176,10 +176,12 @@ int integration_test(ref Session_t session,
                                  .replace(".git", "");
     outdir.mkdirRecurse;
 
-    if (!repo_root.exists) {
-        if (conda.sh("git clone --recursive " ~ pkg.repo ~ " " ~ repo_root)) {
-            return 1;
-        }
+    if (repo_root.exists) {
+        repo_root.rmdirRecurse;
+    }
+
+    if (conda.sh("git clone --recursive " ~ pkg.repo ~ " " ~ repo_root)) {
+        return 1;
     }
 
     repo_root.chdir;
@@ -206,12 +208,14 @@ int integration_test(ref Session_t session,
 
     if (!session.test_pip_requirements.empty) {
         if (conda.sh("python -m pip install "
+                     ~ conda.multiarg("-i", session.pip_index) ~ " "
                      ~ safe_install(session.test_pip_requirements))) {
             return 1;
         }
     }
 
-    if (conda.sh("python -m pip install -e .[test]")) {
+    if (conda.sh("python -m pip install "
+                 ~ conda.multiarg("-i", session.pip_index) ~ " -e .[test]")) {
         return 1;
     }
 

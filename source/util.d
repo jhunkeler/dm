@@ -82,7 +82,6 @@ string safe_spec(string s) {
     return "'" ~ s ~ "'";
 }
 
-
 string safe_install(string[] specs) {
     string[] result;
     foreach (record; specs) {
@@ -90,7 +89,6 @@ string safe_install(string[] specs) {
     }
     return result.join(" ");
 }
-
 
 string safe_install(string specs) {
     string[] result;
@@ -226,7 +224,7 @@ string interpolate(string[string]aa, string str, char delim = '$') {
             if (pair.key != match)
                 continue;
             s = s.replace(delim ~ pair.key, pair.value)
-                      .replace(format("%c{%s}", delim, pair.key), pair.value);
+                 .replace(format("%c{%s}", delim, pair.key), pair.value);
         }
     }
 
