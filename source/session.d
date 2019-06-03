@@ -9,6 +9,13 @@ import util;
 import dyaml;
 
 
+struct TestExtended_t {
+    string name;
+    string[string] runtime;
+    string test_args;
+    string[] commands;
+}
+
 struct Session_t {
     string delivery_name;
     string delivery_version;
@@ -28,6 +35,7 @@ struct Session_t {
     bool run_tests = false;
     string test_program = "pytest";
     string test_args = "-v";
+    TestExtended_t[] test_extended;
     string[] test_conda_requirements;
     string[] test_pip_requirements;
     string[] test_filter_git_orgs;
@@ -143,6 +151,29 @@ Session_t getconf(string filename) {
         data = root["test_filter_git_projects"];
         foreach (Node v; data)
             session.test_filter_git_projects ~= v.as!string;
+    }
+
+    if (root.containsKey("test_extended")) {
+        TestExtended_t te;
+        data = root["test_extended"];
+
+        foreach (Node parent_1, Node child_1; data) {
+            te.name = parent_1.as!string;
+            if (child_1.containsKey("runtime")) {
+                foreach (Node parent_2, Node child_2; child_1["runtime"]) {
+                    te.runtime[parent_2.as!string] = child_2.as!string;
+                }
+            }
+            if (child_1.containsKey("commands")) {
+                foreach (Node v; child_1["commands"]) {
+                    te.commands ~= v.as!string.strip;
+                }
+            }
+            if (child_1.containsKey("test_args")) {
+                te.test_args = child_1["test_args"].as!string;
+            }
+            session.test_extended ~= te;
+        }
     }
     return session;
 }

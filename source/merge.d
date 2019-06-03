@@ -165,6 +165,7 @@ int integration_test(ref Session_t session,
     import std.random : randomSample;
     import std.utf : byCodeUnit;
 
+    TestExtended_t te;
     auto id = letters.byCodeUnit.randomSample(6).to!string;
     string basetemp = tempDir.buildPath("dm_testable_" ~ id);
     basetemp.mkdir;
@@ -206,6 +207,21 @@ int integration_test(ref Session_t session,
         }
     }
 
+    // Retrieve extended test data for this package
+    foreach (TestExtended_t t; session.test_extended) {
+        if (repo_root.baseName == t.name) {
+            te = t;
+            break;
+        }
+    }
+
+    // Inject extended runtime environment early.
+    // a pip-installed package might need something.
+    foreach (string k, string v; te.runtime) {
+        te.runtime[k] = interpolate(conda.env, v).dup;
+        conda.env[k] = te.runtime[k];
+    }
+
     if (!session.test_pip_requirements.empty) {
         if (conda.sh("python -m pip install "
                      ~ conda.multiarg("-i", session.pip_index) ~ " "
@@ -233,8 +249,16 @@ int integration_test(ref Session_t session,
         File(pytest_cfg, "w+").write(data);
     }
 
+    // Execute extended commands
+    foreach (string cmd; te.commands) {
+        conda.sh(interpolate(conda.env, cmd));
+    }
+
+    // Run tests
     if (conda.sh(session.test_program ~ " "
-                 ~ session.test_args ~ " --basetemp=" ~ basetemp)) {
+                 ~ session.test_args ~ " "
+                 ~ te.test_args ~ " "
+                 ~ " --basetemp=" ~ basetemp)) {
         return 1;
     }
     return 0;
