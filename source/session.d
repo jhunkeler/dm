@@ -154,10 +154,10 @@ Session_t getconf(string filename) {
     }
 
     if (root.containsKey("test_extended")) {
-        TestExtended_t te;
         data = root["test_extended"];
 
         foreach (Node parent_1, Node child_1; data) {
+            TestExtended_t te;
             te.name = parent_1.as!string;
             if (child_1.containsKey("runtime")) {
                 foreach (Node parent_2, Node child_2; child_1["runtime"]) {
