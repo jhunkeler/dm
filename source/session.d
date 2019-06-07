@@ -8,47 +8,88 @@ import std.string;
 import util;
 import dyaml;
 
-
+/**
+  Extended test configuration structure
+  */
 struct TestExtended_t {
+    /// Package name
     string name;
+    /// Runtime environment for package
     string[string] runtime;
+    /// Arguments to pass to `Session_t.test_program`
     string test_args;
+    /// Arbitrary commands to execute for package
     string[] commands;
 }
 
+/**
+  Global delivery configuration structure
+  */
 struct Session_t {
+    /// Name of delivery
     string delivery_name;
+    /// Version of delivery
     string delivery_version;
+    /// Revision of delivery (disabled if `final` is `true`)
     ubyte delivery_rev;
+    /// Platform of delivery (automatically generated)
     string delivery_platform;
+    /// Python version to use for delivery
     string delivery_python;
+    /// Fully qualified name (automatically generated)
     string delivery;
+    /// A conda environment specification to inherit from
     string base_spec;
+    /// `exit` or `continue` on error. (NOT IMPLEMENTED)
     string on_error;
+    /// NOT IMPLEMENTED
     string script_pre;
+    /// NOT IMPLEMENTED
     string script_post;
+    /// runtime environment variables
     string[string] runtime;
+    /// conda channels (order preserved)
     string[] conda_channels;
+    /// conda packages to install
     string[] conda_requirements;
+    /// pypi index(s) to use
     string[] pip_index;
+    /// pypi packages to install (accepts arbitrary pip arguments)
     string[] pip_requirements;
+    /// Determine if integration tests will be executed
     bool run_tests = false;
+    /// Test framework to execute
     string test_program = "pytest";
+    /// default arguments to pass to `test_program`
     string test_args = "-v";
+    /// define an array of extended test configurations
     TestExtended_t[] test_extended;
+    /// conda packages to install globally for integration testing
     string[] test_conda_requirements;
+    /// pypi packages to install globally for integration testing
     string[] test_pip_requirements;
+    /// test packages originating from specific users (i.e. spacetelescope)
     string[] test_filter_git_orgs;
+    /// NOT IMPLEMENTED
     string[] test_filter_git_projects;
 }
 
 
+/**
+  Read delivery configuration file
+
+Params:
+    filename = path to YAML configuration file
+
+Returns:
+    populated `Session_t` struct
+ */
 Session_t getconf(string filename) {
     Node root = Loader.fromFile(filename).load();
     Node data;
     Session_t session;
 
-    /// Required configuration items
+    // Required configuration items
     try {
         session.delivery_name = root["delivery_name"].as!string;
         session.delivery_version = root["delivery_version"].as!string;

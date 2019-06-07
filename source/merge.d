@@ -34,6 +34,11 @@ struct testable_t {
 }
 
 
+/**
+  Verifies configuration input
+TODO:
+    Change the name of this function
+  */
 string[string][] dmfile(string[] packages) {
     string[string][] results;
     foreach (line; packages) {
@@ -53,6 +58,9 @@ string[string][] dmfile(string[] packages) {
 }
 
 
+/**
+  Generate base delivery environment
+  */
 bool env_combine(ref Session_t session, ref Conda conda) {
     if (indexOf(session.base_spec, "://", 0) < 0 && !session.base_spec.exists) {
         throw new Exception(session.base_spec ~ " does not exist");
@@ -62,12 +70,10 @@ bool env_combine(ref Session_t session, ref Conda conda) {
     string[] specs;
     string opmode = session.base_spec.endsWith(".yml") ? "env " : "";
 
-    if(conda.run(opmode ~ "create -n " ~ session.delivery
+    if (conda.run(opmode ~ "create -n " ~ session.delivery
                  ~ " --file " ~ session.base_spec)) {
         return false;
     }
-
-    //conda.activate(session.delivery);
 
     writeln("Delivery merge specification:");
     foreach (record; dmfile(session.conda_requirements)) {
@@ -85,7 +91,9 @@ bool env_combine(ref Session_t session, ref Conda conda) {
     return true;
 }
 
-
+/**
+  Scan prefix for just-installed packages owned by `orgs`
+  */
 testable_t[] testable_packages(ref Conda conda, string[] inputs, string[] orgs=[]) {
     testable_t[] results;
     foreach (record; dmfile(inputs)) {
@@ -155,6 +163,9 @@ testable_t[] testable_packages(ref Conda conda, string[] inputs, string[] orgs=[
 }
 
 
+/**
+  Perform integration tests (brute force)
+  */
 int integration_test(ref Session_t session,
                       ref Conda conda,
                       string outdir,
