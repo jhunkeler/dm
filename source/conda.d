@@ -11,16 +11,27 @@ import std.typecons;
 import util;
 
 
+/**
+  Interact with a `conda` installation. If `install_prefix` does
+  not exist, miniconda will be downloaded and installed in the current
+  directory.
+  */
 class Conda {
     import std.net.curl : download;
 
+    /// Gate to prevent PATH clobbering or reconfiguration
     public bool initialized = false;
-    public bool override_channels = true;
+    /// channel URIs (order preserved)
     public string[] channels;
+    /// path to install miniconda (or existing miniconda installation)
     public string install_prefix;
+    /// which version of miniconda to install
     public string installer_version = "4.5.12";
+    /// which variant (python "2", or "3")
     public string installer_variant = "3";
+    /// the runtime environment used for all shell executions
     public string[string] env;
+
     private string[string] env_orig;
     private const string url_base = "https://repo.continuum.io";
     private const string url_miniconda = join([this.url_base, "miniconda"], "/");
@@ -38,6 +49,7 @@ class Conda {
         }
     }
 
+    /// there isn't a good way to determine the CPU type in `phobos`
     private string arch() {
         if (isX86_64()) {
             return "x86_64";
@@ -48,6 +60,7 @@ class Conda {
         throw new Exception("Unsupported CPU");
     }
 
+    /// generate conda platform string
     private string platform() {
         import std.system : OS, os;
         string report;
@@ -72,6 +85,7 @@ class Conda {
         return report;
     }
 
+    /// determine if the installation prefix
     bool installed() {
         if (!this.install_prefix.empty && this.install_prefix.exists) {
             return true;
@@ -79,6 +93,7 @@ class Conda {
         return false;
     }
 
+    /// determine if "our" conda is "the conda" in the environment
     bool in_env() {
         string path = this.env.get("PATH", "");
 
@@ -94,6 +109,7 @@ class Conda {
         return false;
     }
 
+    /// determine if the installer exists
     private bool have_installer() {
         if (!this.installer_file().exists) {
             return false;
@@ -101,6 +117,7 @@ class Conda {
         return true;
     }
 
+    /// generate an installer filename name based on gathered specs
     private string installer_file() {
         string ext = ".sh";
         version (Windows) { ext = ".exe"; }
@@ -113,6 +130,7 @@ class Conda {
         return filename;
     }
 
+    /// install miniconda into `install_prefix`
     bool installer() {
         if (this.in_env() || this.install_prefix.exists) {
             writefln("Miniconda is already installed: %s", this.install_prefix);
@@ -130,6 +148,7 @@ class Conda {
             download(this.url_installer, this.installer_file());
         }
 
+        // execute installation (batch mode)
         auto installer = this.sh(
                 "bash "
                 ~ this.installer_file()
@@ -144,9 +163,8 @@ class Conda {
         return true;
     }
 
+    /// Generate a .condarc inside the root of the `install_prefix`
     void configure_headless() {
-        // YAML is cheap.
-        // Generate a .condarc inside the new prefix root
         auto fp = File(chainPath(this.install_prefix, ".condarc").array, "w+");
         fp.write("changeps1: False\n");
         fp.write("always_yes: True\n");
@@ -164,6 +182,7 @@ class Conda {
         }
     }
 
+    /// Add conda to the runtime environment and configure it for general use
     void initialize() {
         if (this.initialized) {
             writeln("Conda installation has already been initialized");
@@ -179,6 +198,7 @@ class Conda {
         this.initialized = true;
     }
 
+    /// Activates a conda environment by name
     void activate(string name) {
         this.env_orig = this.env.dup;
         string[string] env_new = getenv(this.env, "source activate " ~ name);
@@ -186,20 +206,27 @@ class Conda {
         this.fix_setuptools();
     }
 
+    /// Restores the last recorded environment
+    /// TODO: `env` should be able to handle nested environments
     void deactivate() {
         this.env = this.env_orig.dup;
     }
 
+
+    /// Execute a conda command
     int run(string command) {
         auto proc = this.sh("conda " ~ command);
         return proc;
     }
 
+    /// ditto
+    /// returns process object
     auto run_block(string command) {
         auto proc = this.sh_block("conda " ~ command);
         return proc;
     }
 
+    /// Execute shell command
     int sh(string command) {
         banner('#', command);
         auto proc = spawnShell(command, env=this.env);
@@ -207,17 +234,21 @@ class Conda {
         return wait(proc);
     }
 
+    /// ditto
+    /// returns process object
     auto sh_block(string command) {
         auto proc = executeShell(command, env=this.env);
         return proc;
     }
 
+    /// Generate additive command line arguments
     string multiarg(string flag, string[] arr) {
         if (arr.empty)
             return "";
         return flag ~ " " ~ arr.join(" " ~ flag ~ " ");
     }
 
+    /// Wildcard search prefix for extracted packages
     string[] scan_packages(string pattern="*") {
         string[] result;
         string pkgdir = chainPath(this.install_prefix, "pkgs").array;
@@ -234,10 +265,12 @@ class Conda {
         return result;
     }
 
+    /// determine if a conda environment is present
     bool env_exists(string name) {
         return buildPath(this.install_prefix, "envs", name).exists;
     }
 
+    /// return system path to `name`ed environment
     string env_where(string name) {
         if (this.env_exists(name)) {
             return buildPath(this.install_prefix, "envs", name);
@@ -245,17 +278,22 @@ class Conda {
         return null;
     }
 
+    /// return current conda environment
     string env_current() {
         return this.env.get("CONDA_PREFIX", null);
     }
 
+    /// returns site-packages directory for the active Python interpreter
     string site() {
         return this.sh_block("python -c 'import site; print(site.getsitepackages()[0])'").output.strip;
     }
 
+    /// conda does not like setuptools.
+    /// this allows `pip` to [un]install packages
     void fix_setuptools() {
         string pthfile = buildPath(this.site(), "easy-install.pth");
         if (!pthfile.exists) {
+            // inject easy-install.pth
             File(pthfile, "w+").write("");
         }
     }
@@ -278,6 +316,8 @@ class Conda {
         return proc.output;
     }
 
+    // Note: This is to see what pip sees. It will not be useful to an end
+    // user.
     string dump_env_freeze(string filename=null) {
         auto proc = this.sh_block("pip freeze");
         if (filename !is null) {
