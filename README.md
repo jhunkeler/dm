@@ -74,7 +74,6 @@ pip_requirements:
   - git+https://github/user/repo.git@1.2.3#egg=repo
 
 # Define additional pypi repositories
-# TODO: NOT IMPLEMENTED
 pip_index:
   - https://bytesalad.stsci.edu/artifactory/api/pypi/datb-pypi-virtual
 
